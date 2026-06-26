@@ -315,7 +315,7 @@ export default function Home() {
   function downloadGeneratedImage(imageUrl, id) {
     const link = document.createElement('a')
     link.href = imageUrl
-    link.download = `iacodex-imagen-${id}.png`
+    link.download = `iacodex-imagen-${id}.jpg`
     link.click()
   }
 

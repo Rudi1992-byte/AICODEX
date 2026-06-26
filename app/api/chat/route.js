@@ -70,7 +70,7 @@ async function generateImageWithGemini(prompt) {
       input: [{ type: 'text', text: prompt }],
       response_format: {
         type: 'image',
-        mime_type: 'image/png',
+        mime_type: 'image/jpeg',
         aspect_ratio: '1:1'
       }
     })
@@ -85,7 +85,7 @@ async function generateImageWithGemini(prompt) {
 
   const outputImage = data.output_image || data.outputImage
   const imageData = outputImage?.data || outputImage?.image_bytes || outputImage?.imageBytes
-  const mimeType = outputImage?.mime_type || outputImage?.mimeType || 'image/png'
+  const mimeType = outputImage?.mime_type || outputImage?.mimeType || 'image/jpeg'
 
   if (!imageData) {
     throw new Error('Gemini no devolvio una imagen. Revisa si el modelo de imagen esta habilitado para tu API key.')
