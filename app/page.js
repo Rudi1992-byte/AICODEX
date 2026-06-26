@@ -148,6 +148,12 @@ export default function Home() {
   }, [image, input, loading])
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+
+    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
     const savedName = localStorage.getItem(ACTIVE_USER_KEY) || ''
     const savedTheme = localStorage.getItem(THEME_KEY)
     if (savedTheme === 'light' || savedTheme === 'dark') {
