@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash'
-const IMAGEN_MODEL = process.env.IMAGEN_MODEL || 'imagen-4.0-generate-001'
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || process.env.IMAGEN_MODEL || 'gemini-3.1-flash-image'
 
 function wantsImageGeneration(prompt) {
   const text = prompt
@@ -56,6 +56,45 @@ function toGroqMessages(history, prompt) {
 async function fileToBase64(file) {
   const bytes = await file.arrayBuffer()
   return Buffer.from(bytes).toString('base64')
+}
+
+async function generateImageWithGemini(prompt) {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': process.env.GEMINI_API_KEY
+    },
+    body: JSON.stringify({
+      model: GEMINI_IMAGE_MODEL,
+      input: [{ type: 'text', text: prompt }],
+      response_format: {
+        type: 'image',
+        mime_type: 'image/png',
+        aspect_ratio: '1:1'
+      }
+    })
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    const message = data?.error?.message || `Error ${response.status} generando imagen.`
+    throw new Error(message)
+  }
+
+  const outputImage = data.output_image || data.outputImage
+  const imageData = outputImage?.data || outputImage?.image_bytes || outputImage?.imageBytes
+  const mimeType = outputImage?.mime_type || outputImage?.mimeType || 'image/png'
+
+  if (!imageData) {
+    throw new Error('Gemini no devolvio una imagen. Revisa si el modelo de imagen esta habilitado para tu API key.')
+  }
+
+  return {
+    dataUrl: `data:${mimeType};base64,${imageData}`,
+    model: GEMINI_IMAGE_MODEL
+  }
 }
 
 export async function POST(req) {
@@ -127,31 +166,11 @@ export async function POST(req) {
     }
 
     if (generateImage) {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-      const result = await ai.models.generateImages({
-        model: IMAGEN_MODEL,
-        prompt,
-        config: {
-          numberOfImages: 1,
-          aspectRatio: '1:1',
-          outputMimeType: 'image/png',
-          includeRaiReason: true
-        }
-      })
-      const generated = result.generatedImages?.[0]?.image
-
-      if (!generated?.imageBytes) {
-        return Response.json(
-          {
-            error: 'AICODEX no pudo generar esa imagen. Prueba con una descripcion mas clara.'
-          },
-          { status: 500 }
-        )
-      }
+      const generated = await generateImageWithGemini(prompt)
 
       return Response.json({
         answer: 'Imagen creada por AICODEX.',
-        generatedImage: `data:${generated.mimeType || 'image/png'};base64,${generated.imageBytes}`,
+        generatedImage: generated.dataUrl,
         details: {
           provider: 'AICODEX',
           model: 'AICODEX Imagen',
@@ -182,7 +201,7 @@ export async function POST(req) {
     console.error(error)
     return Response.json(
       {
-        error: 'No pude procesar el mensaje. Revisa tus claves API y vuelve a intentar.'
+        error: `No pude procesar el mensaje: ${error.message || 'revisa tus claves API y vuelve a intentar.'}`
       },
       { status: 500 }
     )

@@ -24,7 +24,7 @@ GROQ_API_KEY=tu_api_key_de_groq
 GEMINI_API_KEY=tu_api_key_de_gemini
 GROQ_MODEL=llama-3.3-70b-versatile
 GEMINI_MODEL=gemini-3.5-flash
-IMAGEN_MODEL=imagen-4.0-generate-001
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
 NEXT_PUBLIC_ADSTERRA_BANNER_KEY=tu_key_de_banner_adsterra
 ```
 
@@ -65,5 +65,5 @@ Si cambias esta variable, reinicia el servidor con `npm run dev`.
 
 1. Importa este repositorio en Vercel.
 2. Deja `Root Directory` en la raiz del repositorio.
-3. Agrega las variables `GROQ_API_KEY`, `GEMINI_API_KEY`, `IMAGEN_MODEL` y `NEXT_PUBLIC_ADSTERRA_BANNER_KEY`.
+3. Agrega las variables `GROQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_IMAGE_MODEL` y `NEXT_PUBLIC_ADSTERRA_BANNER_KEY`.
 4. Deploy.
