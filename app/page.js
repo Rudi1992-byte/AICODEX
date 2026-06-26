@@ -312,11 +312,21 @@ export default function Home() {
     })
   }
 
-  function downloadGeneratedImage(imageUrl, id) {
-    const link = document.createElement('a')
-    link.href = imageUrl
-    link.download = `iacodex-imagen-${id}.jpg`
-    link.click()
+  async function downloadGeneratedImage(imageUrl, id) {
+    try {
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `iacodex-imagen-${id}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      window.open(imageUrl, '_blank', 'noopener,noreferrer')
+    }
   }
 
   if (!profileReady) {
