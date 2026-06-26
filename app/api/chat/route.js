@@ -6,6 +6,7 @@ export const runtime = 'nodejs'
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash'
 const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || process.env.IMAGEN_MODEL || 'gemini-3.1-flash-image'
+const IMAGE_PROVIDER = process.env.IMAGE_PROVIDER || 'pollinations'
 
 function wantsImageGeneration(prompt) {
   const text = prompt
@@ -19,10 +20,11 @@ function wantsImageGeneration(prompt) {
   )
 }
 
-function missingKeys(hasImage) {
+function missingKeys({ hasImage, generateImage }) {
   const missing = []
-  if (!process.env.GROQ_API_KEY && !hasImage) missing.push('GROQ_API_KEY')
+  if (!process.env.GROQ_API_KEY && !hasImage && !generateImage) missing.push('GROQ_API_KEY')
   if (!process.env.GEMINI_API_KEY && hasImage) missing.push('GEMINI_API_KEY')
+  if (!process.env.GEMINI_API_KEY && generateImage && IMAGE_PROVIDER === 'gemini') missing.push('GEMINI_API_KEY')
   return missing
 }
 
@@ -97,6 +99,22 @@ async function generateImageWithGemini(prompt) {
   }
 }
 
+function generateImageWithPollinations(prompt) {
+  const params = new URLSearchParams({
+    width: '1024',
+    height: '1024',
+    model: 'flux',
+    nologo: 'true',
+    private: 'true',
+    seed: String(Date.now())
+  })
+
+  return {
+    dataUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?${params.toString()}`,
+    model: 'Pollinations Flux'
+  }
+}
+
 export async function POST(req) {
   try {
     const formData = await req.formData()
@@ -106,7 +124,7 @@ export async function POST(req) {
     const image = formData.get('image')
     const hasImage = image && typeof image === 'object' && image.size > 0
     const generateImage = !hasImage && (intent === 'generate-image' || wantsImageGeneration(prompt))
-    const missing = missingKeys(hasImage || generateImage)
+    const missing = missingKeys({ hasImage, generateImage })
 
     if (!prompt && !hasImage) {
       return Response.json({ error: 'Escribe un mensaje o sube una foto.' }, { status: 400 })
@@ -166,14 +184,17 @@ export async function POST(req) {
     }
 
     if (generateImage) {
-      const generated = await generateImageWithGemini(prompt)
+      const generated =
+        IMAGE_PROVIDER === 'gemini'
+          ? await generateImageWithGemini(prompt)
+          : generateImageWithPollinations(prompt)
 
       return Response.json({
         answer: 'Imagen creada por AICODEX.',
         generatedImage: generated.dataUrl,
         details: {
           provider: 'AICODEX',
-          model: 'AICODEX Imagen',
+          model: `AICODEX Imagen (${generated.model})`,
           mode: 'image-generation',
           tokens: null
         }
