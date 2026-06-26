@@ -454,6 +454,35 @@ dt {
   margin-bottom: 10px;
 }
 
+.generatedFigure {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+  width: min(420px, 100%);
+}
+
+.generatedImage {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.downloadImage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 7px 11px;
+}
+
 .typing {
   display: flex;
   gap: 6px;
@@ -493,7 +522,7 @@ dt {
 
 .composer {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  grid-template-columns: 42px auto minmax(0, 1fr) 42px;
   gap: 8px;
   align-items: end;
   padding: 8px;
@@ -516,7 +545,8 @@ dt {
 }
 
 .iconButton,
-.sendButton {
+.sendButton,
+.imageModeButton {
   display: grid;
   place-items: center;
   width: 42px;
@@ -525,6 +555,22 @@ dt {
   border: 1px solid var(--line);
   color: var(--text);
   background: var(--panel-2);
+}
+
+.imageModeButton {
+  display: inline-flex;
+  width: auto;
+  min-width: 132px;
+  padding: 0 11px;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.imageModeButton.isActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #071412;
 }
 
 .sendButton {
@@ -663,6 +709,11 @@ dd {
   display: none;
 }
 
+.mobileMenuToggle,
+.mobileScrim {
+  display: none;
+}
+
 @keyframes bounce {
   0%,
   80%,
@@ -695,7 +746,7 @@ dd {
     position: fixed;
     inset: 0 auto 0 0;
     width: min(300px, 86vw);
-    z-index: 20;
+    z-index: 30;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: 24px 0 80px rgba(0, 0, 0, 0.36);
@@ -709,9 +760,32 @@ dd {
     display: grid;
   }
 
+  .mobileMenuToggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 50;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-2);
+    color: var(--text);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.24);
+  }
+
+  .mobileScrim {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    border: 0;
+    background: rgba(0, 0, 0, 0.42);
+  }
+
   .topbar {
     min-height: 66px;
-    padding: 10px 12px;
+    padding: 10px 12px 10px 64px;
   }
 
   .topbarPill {
@@ -750,5 +824,16 @@ dd {
 
   .composerWrap {
     padding: 10px 10px 14px;
+  }
+
+  .composer {
+    grid-template-columns: 42px 42px minmax(0, 1fr) 42px;
+  }
+
+  .imageModeButton {
+    min-width: 42px;
+    width: 42px;
+    padding: 0;
+    font-size: 0;
   }
 }

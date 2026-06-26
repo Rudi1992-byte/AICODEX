@@ -1,10 +1,23 @@
-import Groq from 'groq-sdk'
+﻿import Groq from 'groq-sdk'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash'
+const IMAGEN_MODEL = process.env.IMAGEN_MODEL || 'imagen-4.0-generate-001'
+
+function wantsImageGeneration(prompt) {
+  const text = prompt
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  return (
+    /\b(crea|crear|creame|crearme|genera|generar|dibujame|dibuja|haz|hacer|disena|disename)\b/.test(text) &&
+    /\b(imagen|foto|ilustracion|logo|dibujo)\b/.test(text)
+  )
+}
 
 function missingKeys(hasImage) {
   const missing = []
@@ -49,10 +62,12 @@ export async function POST(req) {
   try {
     const formData = await req.formData()
     const prompt = String(formData.get('message') || '').trim()
+    const intent = String(formData.get('intent') || '').trim()
     const rawHistory = String(formData.get('history') || '[]')
     const image = formData.get('image')
     const hasImage = image && typeof image === 'object' && image.size > 0
-    const missing = missingKeys(hasImage)
+    const generateImage = !hasImage && (intent === 'generate-image' || wantsImageGeneration(prompt))
+    const missing = missingKeys(hasImage || generateImage)
 
     if (!prompt && !hasImage) {
       return Response.json({ error: 'Escribe un mensaje o sube una foto.' }, { status: 400 })
@@ -77,31 +92,71 @@ export async function POST(req) {
     if (hasImage) {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
       const base64 = await fileToBase64(image)
-      const result = await ai.interactions.create({
+      const result = await ai.models.generateContent({
         model: GEMINI_MODEL,
-        input: [
+        contents: [
           {
-            type: 'text',
-            text:
-              prompt ||
-              'Analiza esta imagen en espanol. Describe lo importante, interpreta detalles y responde con claridad.'
-          },
-          {
-            type: 'image',
-            data: base64,
-            mime_type: image.type || 'image/jpeg'
+            role: 'user',
+            parts: [
+              {
+                text:
+                  prompt ||
+                  'Analiza esta imagen en espanol. Describe lo importante, interpreta detalles y responde con claridad.'
+              },
+              {
+                inlineData: {
+                  data: base64,
+                  mimeType: image.type || 'image/jpeg'
+                }
+              }
+            ]
           }
         ]
       })
 
       return Response.json({
-        answer: result.output_text || 'No pude generar una respuesta para esta imagen.',
+        answer: result.text || 'No pude generar una respuesta para esta imagen.',
         details: {
           provider: 'AICODEX',
           model: 'AICODEX Vision',
           mode: 'vision',
           imageName: image.name || 'imagen',
           imageType: image.type || 'desconocido'
+        }
+      })
+    }
+
+    if (generateImage) {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+      const result = await ai.models.generateImages({
+        model: IMAGEN_MODEL,
+        prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: '1:1',
+          outputMimeType: 'image/png',
+          includeRaiReason: true
+        }
+      })
+      const generated = result.generatedImages?.[0]?.image
+
+      if (!generated?.imageBytes) {
+        return Response.json(
+          {
+            error: 'AICODEX no pudo generar esa imagen. Prueba con una descripcion mas clara.'
+          },
+          { status: 500 }
+        )
+      }
+
+      return Response.json({
+        answer: 'Imagen creada por AICODEX.',
+        generatedImage: `data:${generated.mimeType || 'image/png'};base64,${generated.imageBytes}`,
+        details: {
+          provider: 'AICODEX',
+          model: 'AICODEX Imagen',
+          mode: 'image-generation',
+          tokens: null
         }
       })
     }
@@ -133,3 +188,4 @@ export async function POST(req) {
     )
   }
 }
+

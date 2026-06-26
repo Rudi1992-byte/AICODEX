@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Bot,
   Camera,
   CheckCircle2,
+  Download,
   ImagePlus,
   Info,
   Menu,
@@ -19,7 +21,7 @@ import {
 
 const suggestions = [
   'Escribime una respuesta profesional para un cliente',
-  'Analiza esta foto y dime que detalles ves',
+  'Creame una imagen de un robot futurista',
   'Crea ideas para un negocio con IA',
   'Explicame este tema como si fuera principiante'
 ]
@@ -73,13 +75,14 @@ function userKey(name) {
 }
 
 function safeMessages(messages) {
-  return messages.map(({ id, role, content, createdAt, details, imageName }) => ({
+  return messages.map(({ id, role, content, createdAt, details, imageName, generatedImage }) => ({
     id,
     role,
     content,
     createdAt,
     details,
-    imageName
+    imageName,
+    generatedImage
   }))
 }
 
@@ -90,6 +93,18 @@ function readHistory(name) {
   } catch {
     return []
   }
+}
+
+function wantsImageGeneration(prompt) {
+  const text = prompt
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  return (
+    /\b(crea|crear|creame|crearme|genera|generar|dibujame|dibuja|haz|hacer|disena|disename)\b/.test(text) &&
+    /\b(imagen|foto|ilustracion|logo|dibujo)\b/.test(text)
+  )
 }
 
 function createMessage(role, content, extras = {}) {
@@ -113,6 +128,7 @@ export default function Home() {
   const [theme, setTheme] = useState('dark')
   const [input, setInput] = useState('')
   const [image, setImage] = useState(null)
+  const [imageMode, setImageMode] = useState(false)
   const [preview, setPreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -185,6 +201,8 @@ export default function Home() {
     setMessages([])
     setInput('')
     setError('')
+    setImageMode(false)
+    setSidebarOpen(false)
     removeImage()
   }
 
@@ -203,6 +221,7 @@ export default function Home() {
 
     if (preview) URL.revokeObjectURL(preview)
     setImage(file)
+    setImageMode(false)
     setPreview(URL.createObjectURL(file))
     setError('')
   }
@@ -231,6 +250,10 @@ export default function Home() {
 
     const formData = new FormData()
     formData.append('message', cleanText)
+    const shouldGenerateImage = !image && (imageMode || wantsImageGeneration(cleanText))
+    if (shouldGenerateImage) {
+      formData.append('intent', 'generate-image')
+    }
     formData.append(
       'history',
       JSON.stringify(
@@ -244,6 +267,7 @@ export default function Home() {
 
     setImage(null)
     setPreview('')
+    setImageMode(false)
     if (fileRef.current) fileRef.current.value = ''
 
     try {
@@ -260,7 +284,8 @@ export default function Home() {
       setMessages((current) => [
         ...current,
         createMessage('assistant', data.answer, {
-          details: data.details
+          details: data.details,
+          generatedImage: data.generatedImage || ''
         })
       ])
       setDetails(data.details)
@@ -276,6 +301,8 @@ export default function Home() {
     setMessages([])
     setError('')
     setInput('')
+    setImageMode(false)
+    setSidebarOpen(false)
     removeImage()
     setDetails({
       provider: 'AICODEX',
@@ -283,6 +310,13 @@ export default function Home() {
       mode: 'router',
       tokens: null
     })
+  }
+
+  function downloadGeneratedImage(imageUrl, id) {
+    const link = document.createElement('a')
+    link.href = imageUrl
+    link.download = `iacodex-imagen-${id}.png`
+    link.click()
   }
 
   if (!profileReady) {
@@ -311,6 +345,11 @@ export default function Home() {
 
   return (
     <main className="appShell" data-theme={theme}>
+      <button className="mobileMenuToggle mobileOnly" onClick={() => setSidebarOpen((open) => !open)}>
+        {sidebarOpen ? <ArrowLeft size={20} /> : <Menu size={20} />}
+      </button>
+      {sidebarOpen && <button className="mobileScrim mobileOnly" onClick={() => setSidebarOpen(false)} />}
+
       <aside className={`sidebar ${sidebarOpen ? 'isOpen' : ''}`}>
         <div className="brand">
           <img className="brandLogo" src="/iacodex-logo.jpeg" alt="AICODEX" />
@@ -358,9 +397,6 @@ export default function Home() {
 
       <section className="chatPanel">
         <header className="topbar">
-          <button className="iconButton mobileOnly" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            <Menu size={20} />
-          </button>
           <div>
             <p>IACODEX</p>
             <span>Chat inteligente de AICODEX para {userName}</span>
@@ -400,6 +436,19 @@ export default function Home() {
                 </div>
                 {message.image && (
                   <img className="messageImage" src={message.image} alt={message.imageName || 'Imagen subida'} />
+                )}
+                {message.generatedImage && (
+                  <figure className="generatedFigure">
+                    <img className="generatedImage" src={message.generatedImage} alt="Imagen generada por AICODEX" />
+                    <button
+                      className="downloadImage"
+                      type="button"
+                      onClick={() => downloadGeneratedImage(message.generatedImage, message.id)}
+                    >
+                      <Download size={16} />
+                      Descargar
+                    </button>
+                  </figure>
                 )}
                 <p>{message.content}</p>
               </div>
@@ -455,6 +504,19 @@ export default function Home() {
             <button type="button" className="iconButton" onClick={() => fileRef.current?.click()}>
               <ImagePlus size={21} />
             </button>
+            <button
+              type="button"
+              className={`imageModeButton ${imageMode ? 'isActive' : ''}`}
+              onClick={() => {
+                setImageMode((active) => !active)
+                setImage(null)
+                setPreview('')
+                if (fileRef.current) fileRef.current.value = ''
+              }}
+            >
+              <ImagePlus size={18} />
+              Crear imagen
+            </button>
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -464,7 +526,13 @@ export default function Home() {
                   if (canSend) sendMessage()
                 }
               }}
-              placeholder={image ? 'Pregunta algo sobre la imagen...' : 'Escribe un mensaje para IACODEX...'}
+              placeholder={
+                imageMode
+                  ? 'Describe la imagen que queres crear...'
+                  : image
+                    ? 'Pregunta algo sobre la imagen...'
+                    : 'Escribe un mensaje para IACODEX...'
+              }
               rows={1}
             />
             <button className="sendButton" type="submit" disabled={!canSend}>
