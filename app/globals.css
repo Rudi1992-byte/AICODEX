@@ -316,6 +316,10 @@ dt {
   min-width: 0;
 }
 
+.chatPanel.hasInlineAd {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -622,6 +626,17 @@ dt {
   border-width: 0 0 0 1px;
 }
 
+.mobileAdWrap {
+  display: grid;
+  justify-items: center;
+  padding: 12px 12px 0;
+}
+
+.mobileAdWrap .adPanel {
+  width: min(300px, 100%);
+  margin-bottom: 0;
+}
+
 .adPanel {
   display: grid;
   gap: 8px;
@@ -638,11 +653,17 @@ dt {
 .adFrame,
 .adPlaceholder {
   width: 100%;
+  max-width: 300px;
   min-height: 250px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(31, 35, 41, 0.64);
   overflow: hidden;
+}
+
+.adSlot {
+  display: grid;
+  place-items: center;
 }
 
 .adFrame {

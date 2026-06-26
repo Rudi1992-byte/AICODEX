@@ -49,7 +49,7 @@ function AdsterraAd() {
 
     const script = document.createElement('script')
     script.type = 'text/javascript'
-    script.src = `//www.highperformanceformat.com/${ADSTERRA_BANNER_KEY}/invoke.js`
+    script.src = `https://www.highperformanceformat.com/${ADSTERRA_BANNER_KEY}/invoke.js`
     adRef.current.appendChild(script)
   }, [])
 
@@ -139,6 +139,7 @@ export default function Home() {
     tokens: null
   })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showInlineAd, setShowInlineAd] = useState(false)
   const fileRef = useRef(null)
   const messagesEndRef = useRef(null)
 
@@ -169,6 +170,15 @@ export default function Home() {
     if (!profileReady || !userName) return
     localStorage.setItem(userKey(userName), JSON.stringify(safeMessages(messages)))
   }, [messages, profileReady, userName])
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1080px)')
+    const syncAdLayout = () => setShowInlineAd(query.matches)
+
+    syncAdLayout()
+    query.addEventListener('change', syncAdLayout)
+    return () => query.removeEventListener('change', syncAdLayout)
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -405,7 +415,7 @@ export default function Home() {
         </div>
       </aside>
 
-      <section className="chatPanel">
+      <section className={`chatPanel ${showInlineAd ? 'hasInlineAd' : ''}`}>
         <header className="topbar">
           <div>
             <p>IACODEX</p>
@@ -416,6 +426,12 @@ export default function Home() {
             AICODEX activo
           </div>
         </header>
+
+        {showInlineAd && (
+          <div className="mobileAdWrap">
+            <AdsterraAd />
+          </div>
+        )}
 
         <div className="messages">
           {messages.length === 0 && (
@@ -552,36 +568,38 @@ export default function Home() {
         </form>
       </section>
 
-      <aside className="detailsPanel">
-        <AdsterraAd />
+      {!showInlineAd && (
+        <aside className="detailsPanel">
+          <AdsterraAd />
 
-        <div className="detailsHeader">
-          <PanelRight size={18} />
-          <strong>Detalles</strong>
-        </div>
-        <dl>
-          <div>
-            <dt>Plataforma</dt>
-            <dd>{details.provider}</dd>
+          <div className="detailsHeader">
+            <PanelRight size={18} />
+            <strong>Detalles</strong>
           </div>
-          <div>
-            <dt>Sistema</dt>
-            <dd>{details.model}</dd>
-          </div>
-          <div>
-            <dt>Modo</dt>
-            <dd>{details.mode}</dd>
-          </div>
-          <div>
-            <dt>Tokens</dt>
-            <dd>{details.tokens || 'Segun respuesta'}</dd>
-          </div>
-          <div>
-            <dt>Usuario</dt>
-            <dd>{userName}</dd>
-          </div>
-        </dl>
-      </aside>
+          <dl>
+            <div>
+              <dt>Plataforma</dt>
+              <dd>{details.provider}</dd>
+            </div>
+            <div>
+              <dt>Sistema</dt>
+              <dd>{details.model}</dd>
+            </div>
+            <div>
+              <dt>Modo</dt>
+              <dd>{details.mode}</dd>
+            </div>
+            <div>
+              <dt>Tokens</dt>
+              <dd>{details.tokens || 'Segun respuesta'}</dd>
+            </div>
+            <div>
+              <dt>Usuario</dt>
+              <dd>{userName}</dd>
+            </div>
+          </dl>
+        </aside>
+      )}
     </main>
   )
 }
